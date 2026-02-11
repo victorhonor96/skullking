@@ -3,103 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Skull King Helper PRO</title>
-
+<title>Skull King Solver</title>
 <style>
-:root{
-  --bg:#0f172a;
-  --card:#1e293b;
-  --accent:#22c55e;
-  --text:#e5e7eb;
-  --muted:#94a3b8;
-}
-
-*{box-sizing:border-box;font-family:system-ui}
-
-body{
-  margin:0;
-  background:var(--bg);
-  color:var(--text);
-}
-
-.container{
-  max-width:420px;
-  margin:auto;
-  padding:16px;
-}
-
-h1{
-  text-align:center;
-  font-size:1.4rem;
-}
-
-.section{
-  background:var(--card);
-  border-radius:16px;
-  padding:12px;
-  margin-bottom:12px;
-}
-
-label{
-  font-size:.8rem;
-  color:var(--muted);
-}
-
-select,button{
-  width:100%;
-  padding:10px;
-  border-radius:12px;
-  border:none;
-  margin-top:6px;
-  background:#020617;
-  color:var(--text);
-  font-size:1rem;
-}
-
-button{
-  background:var(--accent);
-  color:#022c22;
-  font-weight:700;
-}
-
-.hand{
-  display:flex;
-  flex-wrap:wrap;
-  gap:6px;
-}
-
-.chip{
-  background:#020617;
-  padding:6px 10px;
-  border-radius:999px;
-  font-size:.8rem;
-  cursor:pointer;
-}
-
-.bet{
-  font-size:3rem;
-  font-weight:900;
-  color:var(--accent);
-  text-align:center;
-}
-
-.card{
-  background:#020617;
-  border-radius:12px;
-  padding:10px;
-  margin-top:6px;
-}
-
-.percent{
-  float:right;
-  color:var(--accent);
-}
+body{background:#0f172a;color:#e5e7eb;font-family:system-ui;margin:0;padding:16px;max-width:480px;margin:auto}
+.section{background:#1e293b;padding:12px;border-radius:14px;margin-bottom:12px}
+select,button{width:100%;padding:10px;border-radius:10px;border:none;margin-top:6px;background:#020617;color:#fff}
+button{background:#22c55e;color:#022c22;font-weight:bold}
+.chip{background:#020617;padding:6px 10px;border-radius:999px;margin:4px;display:inline-block;cursor:pointer}
+.bet{font-size:2.8rem;text-align:center;font-weight:900;color:#22c55e}
+.card{background:#020617;padding:8px;border-radius:10px;margin-top:4px}
+.small{font-size:.8rem;color:#94a3b8}
 </style>
 </head>
 <body>
 
-<div class="container">
-<h1>🏴‍☠️ Skull King Helper PRO</h1>
+<h2>🏴‍☠️ Skull King Solver</h2>
 
 <div class="section">
 <label>Jogadores</label>
@@ -111,57 +29,57 @@ button{
 
 <div class="section">
 <label>Adicionar carta</label>
-
 <select id="type">
-<option value="pirate">Pirata</option>
 <option value="number">Numérica</option>
+<option value="pirate">Pirata</option>
 <option value="mermaid">Sereia</option>
-<option value="escape">Bandeira</option>
+<option value="escape">Fuga</option>
 <option value="skull">Skull King</option>
 <option value="tigress">Tigresa</option>
 <option value="kraken">Kraken</option>
 <option value="whale">Baleia</option>
 </select>
-
 <select id="suit">
-<option value="black">Preto (trunfo)</option>
+<option value="black">Preto</option>
 <option value="red">Vermelho</option>
 <option value="blue">Azul</option>
 <option value="yellow">Amarelo</option>
 </select>
-
 <select id="value">
 <script>
 for(let i=1;i<=13;i++)document.write(`<option>${i}</option>`)
 </script>
 </select>
-
 <button onclick="addCard()">Adicionar</button>
 </div>
 
 <div class="section">
 <label>Sua mão (toque para remover)</label>
-<div class="hand" id="hand"></div>
-<button onclick="analyze()">Calcular aposta</button>
+<div id="hand"></div>
+<button onclick="solve()">Rodar Solver</button>
 </div>
 
-<div class="section" id="result"></div>
-
-</div>
+<div class="section" id="output"></div>
 
 <script>
-// ===== BARALHO =====
-const deck=[];
-["black","red","blue","yellow"].forEach(s=>{
-  for(let i=1;i<=13;i++)deck.push({type:"number",suit:s,value:i});
-});
-["pirate","pirate","pirate","pirate","pirate",
- "mermaid","mermaid",
- "escape","escape","escape","escape","escape",
- "skull","tigress","kraken","whale"].forEach(t=>deck.push({type:t}));
 
-// ===== MÃO =====
-const hand=[];
+// ====== CONFIG ======
+const SIMS = 4000;
+
+// ====== BARALHO BASE ======
+function baseDeck(){
+  const d=[];
+  ["black","red","blue","yellow"].forEach(s=>{
+    for(let i=1;i<=13;i++)d.push({type:"number",suit:s,value:i});
+  });
+  ["pirate","pirate","pirate","pirate","pirate",
+   "mermaid","mermaid",
+   "escape","escape","escape","escape","escape",
+   "skull","tigress","kraken","whale"].forEach(t=>d.push({type:t}));
+  return d;
+}
+
+let hand=[];
 const handDiv=document.getElementById("hand");
 
 function addCard(){
@@ -170,103 +88,121 @@ function addCard(){
     suit:suit.value,
     value:+value.value
   });
-  render();
+  renderHand();
 }
 
-function render(){
+function renderHand(){
   handDiv.innerHTML="";
   hand.forEach((c,i)=>{
     const el=document.createElement("div");
     el.className="chip";
-    el.textContent=desc(c);
-    el.onclick=()=>{ hand.splice(i,1); render(); };
+    el.innerText=desc(c);
+    el.onclick=()=>{hand.splice(i,1);renderHand();}
     handDiv.appendChild(el);
   });
 }
 
-// ===== REGRAS =====
-function wins(a,b){
-  if(a.type==="kraken"||a.type==="whale")return false;
-  if(b.type==="kraken"||b.type==="whale")return false;
-  if(a.type==="escape")return false;
-  if(a.type==="skull"&&b.type==="mermaid")return false;
-  if(a.type==="mermaid"&&b.type==="skull")return true;
+function desc(c){
+  if(c.type==="number") return `${c.value} ${c.suit}`;
+  return c.type;
+}
 
-  if(a.type==="number"&&b.type==="number"){
-    if(a.suit==="black"&&b.suit!=="black")return true;
-    if(b.suit==="black"&&a.suit!=="black")return false;
-    if(a.suit===b.suit)return a.value>b.value;
-    return false;
+// ====== HIERARQUIA ======
+function rank(card){
+  if(card.type==="kraken"||card.type==="whale") return -1;
+  if(card.type==="escape") return 0;
+  if(card.type==="number"){
+    return (card.suit==="black"?200:100)+card.value;
   }
-
-  const h=["escape","number","mermaid","pirate","tigress","skull"];
-  if(a.type!=="number"&&b.type!=="number")
-    return h.indexOf(a.type)>h.indexOf(b.type);
-
-  return a.type!=="number";
+  if(card.type==="mermaid") return 300;
+  if(card.type==="pirate") return 400;
+  if(card.type==="tigress") return 400;
+  if(card.type==="skull") return 500;
 }
 
-// ===== PROB BASE =====
-function chance(card,players){
-  let w=0;
-  deck.forEach(o=>{ if(wins(card,o))w++; });
-  return Math.pow(w/deck.length, players-1);
+// ====== SIMULAR VAZA ======
+function trick(cards){
+  if(cards.some(c=>c.type==="kraken"||c.type==="whale")) return -1;
+  let winner=0;
+  let best=rank(cards[0]);
+  for(let i=1;i<cards.length;i++){
+    const r=rank(cards[i]);
+    if(r>best){ best=r; winner=i;}
+  }
+  return winner;
 }
 
-// ===== VIÉS HUMANO =====
-function humanBias(card){
-  if(card.type==="skull") return 0.25;
-  if(card.type==="pirate") return 0.12;
-  if(card.type==="mermaid") return 0.08;
-  return 0;
-}
-
-// ===== ANÁLISE =====
-function analyze(){
+// ====== SOLVER ======
+function solve(){
   const playersCount=+players.value;
+  const rounds=hand.length;
+  const dist=Array(rounds+1).fill(0);
 
-  let sum=0;
-  let hasSkull=false;
-  let pirateCount=0;
+  for(let sim=0;sim<SIMS;sim++){
+    let deck=baseDeck();
 
-  const ranked=hand.map(c=>{
-    let p=chance(c,playersCount);
-    p+=humanBias(c);
-    if(p>1)p=1;
+    // remover sua mão do baralho
+    hand.forEach(h=>{
+      const idx=deck.findIndex(d=>JSON.stringify(d)===JSON.stringify(h));
+      if(idx>-1) deck.splice(idx,1);
+    });
 
-    if(c.type==="skull") hasSkull=true;
-    if(c.type==="pirate") pirateCount++;
+    // embaralhar
+    deck.sort(()=>Math.random()-0.5);
 
-    sum+=p;
-    return {...c,p};
-  }).sort((a,b)=>b.p-a.p);
+    // distribuir
+    const opponents=[];
+    for(let p=0;p<playersCount-1;p++){
+      opponents.push(deck.splice(0,rounds));
+    }
 
-  // bônus de sinergia Skull + Pirata
-  if(hasSkull && pirateCount>0){
-    sum+=0.2;
+    let myWins=0;
+
+    for(let r=0;r<rounds;r++){
+      const table=[hand[r]];
+      opponents.forEach(o=>table.push(o[r]));
+      const winner=trick(table);
+      if(winner===0) myWins++;
+    }
+
+    dist[myWins]++;
   }
 
-  const bet=Math.round(sum);
+  // normalizar
+  const probs=dist.map(d=>d/SIMS);
 
-  result.innerHTML=`
-    <div class="bet">${bet}</div>
-    <div style="text-align:center;margin-bottom:10px;">Aposta recomendada</div>
+  // calcular EV por aposta
+  const ev=[];
+  for(let bet=0;bet<=rounds;bet++){
+    let total=0;
+    for(let w=0;w<=rounds;w++){
+      const p=probs[w];
+      let score=0;
+      if(bet===0){
+        score = (w===0)? rounds*10 : -rounds*10;
+      }else{
+        if(w===bet) score=bet*20;
+        else score=-10*Math.abs(w-bet);
+      }
+      total+=p*score;
+    }
+    ev.push(total);
+  }
+
+  const bestBet=ev.indexOf(Math.max(...ev));
+
+  output.innerHTML=`
+    <div class="bet">${bestBet}</div>
+    <div style="text-align:center">Aposta ótima (EV máximo)</div>
     <hr>
-    ${ranked.map(c=>`
-      <div class="card">
-        ${desc(c)}
-        <span class="percent">${(c.p*100).toFixed(0)}%</span>
-      </div>
-    `).join("")}
+    <div class="small">Distribuição de vazas:</div>
+    ${probs.map((p,i)=>`<div class="card">${i} vazas → ${(p*100).toFixed(1)}%</div>`).join("")}
+    <hr>
+    <div class="small">EV por aposta:</div>
+    ${ev.map((e,i)=>`<div class="card">Apostar ${i} → ${e.toFixed(1)}</div>`).join("")}
   `;
 }
 
-// ===== TEXTO =====
-function desc(c){
-  if(c.type==="number")return `${c.value} ${c.suit}`;
-  return c.type;
-}
 </script>
-
 </body>
 </html>
